@@ -2,37 +2,38 @@
 
 Version 2
 
-**esp32-airsens** est un projet qui vise à créer des capteurs intelligents et connectés pour la domotique. Ces capteurs utilisent le processeur ESP32 et le langage Micropython pour mesurer différents paramètres environnementaux et les envoyer à une centrale via un réseau sans fil. La centrale est basée sur un système Liligo TTGO qui reçoit les données des capteurs, les publie sur un broker MQTT et affiche les informations pertinentes sur un écran, notamment la température, le taux d’humidité, la pression atmosphérique et le niveau de charge de batterie des capteurs.
+**esp32-airsens** est un projet de domotique qui consiste à créer des capteurs intelligents et connectés pour surveiller l'environnement. Ces capteurs sont basés sur le processeur ESP32 et le langage Micropython. Ils peuvent mesurer différents paramètres tels que la température, l'humidité, la pression atmosphérique et le niveau de charge de batterie. Ils envoient ensuite ces données à une centrale via un réseau sans fil. La centrale est un système Liligo TTGO qui reçoit les données des capteurs, les publie sur un broker MQTT et les affiche sur un écran. L'écran permet de visualiser les informations pertinentes pour chaque capteur.
 
-La version 2 apporte un nouveau concept pour la structure des données et n'est plus compatible avec la version 1
+La version 2 du projet introduit un nouveau concept pour la structure des données qui n'est pas compatible avec la version 1. Ce concept permet de simplifier la communication entre les capteurs et la centrale, ainsi que de gérer plus facilement les différents types de capteurs.
 
 ## Schéma de principe
-https://github.com/JOM52/esp32-airsens-tld/blob/main/doc/Sch%C3%A9ma%20de%20principe.jpg
+https://github.com/JOM52/esp32-airsens-v2/blob/main/doc/Sch%C3%A9ma%20de%20principe.jpg
 
 ## Elément capteur:
 
-Le hardware de la version 06_tld étant suffisamment abouti, il est repris tel quel.
+La version 1.06_tld du hardware fonctionne bien et ne nécessite pas de modification.
 
-Afin de minimiser la consommation, cette version n'inclus pour le hardware que le strict minimum pour assurer le fonctionnement du capteur. La communication avec un PC pour la configuration est faite à l'aide d'une interface FTDI (USB to UART) connectée à la demande et les batteries sont rechargées hors du système. 
+Pour réduire la consommation d'énergie, cette version hard ne contient que l'essentiel pour faire fonctionner le capteur. La configuration se fait par une interface FTDI (USB to UART) qui se branche au besoin et les batteries se rechargent à part.
 
-Dans l'exemple ci-après, le capteur est un BME 280 qui permet la mesure de la température, du taux d'humidité et de la pression atmosphérique.
-https://github.com/JOM52/esp32-airsens-tld/blob/main/schema/Airsens%20v06_tld.jpg. 
+Dans l'exemple ci-après, le capteur est un BME 280 qui permet la mesure de la température, du taux d'humidité et de la pression atmosphérique.https://https://github.com/JOM52/esp32-airsens-v2/blob/main/schema/Schema.pdf
 
-Des capteurs de type hdc1080 ne permettant que la mesure de la température  et de l'humidité relative peuvent aussi être utilisés
+On peut aussi utiliser des capteurs hdc1080 qui mesurent seulement la température et l'humidité relative.
 
 ### Hardware
 
-Le hardware ESP32 est prévu pour pouvoir utiliser différents types de capteurs I2C. Actuellement les capteurs BME280, BME680 et HDV1080 sont implémentés.
+Le hardware ESP32 est un microcontrôleur qui intègre des fonctionnalités de Wi-Fi et de Bluetooth, ainsi que des modules de gestion de l'alimentation, des filtres et des amplificateurs. Il peut se connecter à différents types de capteurs I2C, un protocole de communication série synchrone. 
 
 ### Software
 
-Chaque type de capteur a son propre driver. Dans la version 2 le type de capteur utilisé est défini dans le fichier de configuration et il est possible d'avoir plusieurs capteurs sur le même senseur (attention à l'augmentation de la consommation qui va réduire la durée de vie de la batterie).
-
-Comme il s'agit de grandeur "climatiques ou environnementales" une nouvelle mesure chaque 5 minutes est adéquate. Ainsi on peur espérer une durée de vie d'une batterie Li-Ion d'environ 2Ah (type 18650)  d'environ une année.
+Ce projet implémente les drivers pour les capteurs de type BME280, BME680 et HDV1080. Ces capteurs permettent de mesurer différentes grandeurs liées au climat ou à l'environnement. Dans la version 2 du projet, on peut choisir le type et le nombre de capteurs à utiliser dans le fichier de configuration. Toutefois, il faut tenir compte de l'impact sur la consommation d'énergie et la durée de vie de la batterie. Avec une batterie Li-Ion de 2Ah (type 18650), on peut, avec un seul capteur,  réaliser une mesure toutes les 5 minutes pendant environ un an.
 
 #### Fichier de configuration du capteur
 
-Afin de faciliter la configuration d'un capteur, un fichier de configuration est lu à chaque démarrage. Ce fichier n'a pas besoin d'une structure particulière, il utilise simplement la syntaxe Micropython pour assigner des valeurs à des variables. De cette façon, les modifications de paramètres se font facilement, dans un seul fichier accessible et sans avoir à chercher et modifier les constantes dans tout le code. L'indication des sections est facultative mais elle aide à comprendre le rôle de chaque paramètre.
+Le fichier de configuration permet de personnaliser le fonctionnement d'un capteur sans avoir à modifier le code source. Il contient des lignes de code en Micropython qui assignent des valeurs à des variables globales. Ces variables sont ensuite utilisées par le programme principal pour paramétrer les différents éléments du système. Le fichier de configuration n'a pas besoin d'une structure particulière, mais il peut être organisé en sections pour faciliter la lecture et la compréhension.
+
+Le code ci-après permet de configurer un capteur connecté à un ESP32 qui utilise le protocole ESP-now pour envoyer des données à un proxy. Le capteur peut être de type hdc1080, bme280 ou bme680 et mesure la température, l'humidité, la pression, le gaz et l'altitude selon le cas. Le capteur est alimenté par une batterie et entre en mode deepsleep entre chaque acquisition pour économiser de l'énergie. La tension de la batterie est mesurée par un pont diviseur de tension et un convertisseur analogique-numérique. Le code utilise les constantes définies au début du fichier pour paramétrer les différents éléments du système. Par exemple, SENSOR_LOCATION indique le nom du capteur, T_DEEPSLEEP_MS indique la durée du mode deepsleep en millisecondes, SENSORS indique les types de capteurs disponibles et leurs mesures associées, ON_BATTERY indique si le capteur est alimenté par une batterie ou non, etc. Le code utilise également la variable PROXY_MAC_ADRESS pour indiquer l'adresse MAC du proxy auquel il envoie les données via 
+
+Le code ci-dessous montre un exemple de fichier de configuration pour ce système:
 
 ```
 # acquisitions
@@ -70,8 +71,11 @@ PROXY_MAC_ADRESS = b'<a\x05\rg\xcc'
 # PROXY_MAC_ADRESS = b'<a\x05\x0c\xe7('
 ```
 
+
+
 ### Messages
-Les valeurs mesurées pour chaque grandeur sont regroupées et transmises au broker dans un seul message. Le format de principe du message est le suivant:
+
+Les valeurs mesurées pour chaque grandeur sont regroupées et transmises au broker MQTT dans un seul message. Le format de principe du message est le suivant:
 
 `msg = (topic, location, grandeur 1, grandeurs 2, .... , grandeur n, bat, rssi)`
 
@@ -81,7 +85,7 @@ Les grandeurs mesurées sont dépendantes des possibilités du capteur par exemp
 - BME280  : température, humidité, pression
 - BME680  : température, humidité, pression, qualité de l'air
 
-Les valeurs transmises à MQTT sont fonction de la configuration définie dans le fichier conf du capteur.
+Les valeurs transmises à MQTT sont fonction de la configuration définie dans le fichier _conf du capteur.
 
 #### Principe du logiciel capteur
 
