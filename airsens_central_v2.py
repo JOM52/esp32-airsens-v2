@@ -6,7 +6,7 @@ file: airsens_central.py
 
 author: jom52
 email: jom52.dev@gmail.com
-github: https://github.com/JOM52/esp32-airsens-class
+github: https://github.com/JOM52/esp32-airsens-v2
 
 v0.4.0 : 05.02.2023 --> first prototype
 v0.4.1 : 26.02.2023 --> optimisation du fichier conf
@@ -20,7 +20,7 @@ v1.1.0 : 07.04.2023 --> adaptation for domoticz process begin
 v2.0.0 : 10.04.2023 --> new data structure no more compatible with old versions
 """
 VERSION = '2.0.0'
-PROGRAM_NAME = 'airsens_central.py'
+PROGRAM_NAME = 'airsens_central_v2.py'
 print('Loading "' + PROGRAM_NAME + '" v' + VERSION + ' please be patient ...')
 import airsens_central_conf_v2 as conf
 
@@ -30,6 +30,7 @@ from espnow import ESPNow
 from utime import sleep_ms, localtime, time, gmtime
 from network import WLAN, STA_IF, AP_IF, WIFI_PS_NONE
 from ntptime import settime
+from math import ceil
 
 from lib.log_and_count import LogAndCount
 from lib.ttgo_display import TtgoTdisplay
@@ -52,6 +53,8 @@ class Show:
         self.datas = datas
         self.data_time = data_time
         self.refresh_screen_timer = Timer(0)  # timer to switch to the next ecran
+        self.refresh_screen_timer.init(period=conf.REFRESH_SCREEN_TIMER_MS, mode=Timer.PERIODIC,
+                                       callback=self.refresh_screen_from_timer)
 
     # called by the timer because he give a not usefull param
     # and the procedure refresh_screen don't use it
@@ -60,13 +63,13 @@ class Show:
 
     # refresh the screen for any mode
     def refresh_screen(self):
+            
         self.ttgo_display.cls()
         if GlobalVar.current_mode == 0:
             'mode auto'
             GlobalVar.data_pointer = self.manage_data_pointer(GlobalVar.data_pointer, len(self.datas))
             self.display_auto(self.datas, GlobalVar.data_pointer)
-            self.refresh_screen_timer.init(period=conf.REFRESH_SCREEN_TIMER_MS, mode=Timer.ONE_SHOT,
-                                           callback=self.refresh_screen_from_timer)
+            
         elif GlobalVar.current_mode == 1:
             'mode overview'
             self.display_overview(title='OVERVIEW ', n_row=4, n_col=1, data_list=self.datas,
@@ -95,21 +98,20 @@ class Show:
         self.ttgo_display.cls()
         if data_list:
             len_data_list = len(data_list)
-            self.ttgo_display.write_line(0, title
-                                         + str(current_page * n_row) + '...'
-                                         + str((current_page + n_col) * n_row) + ' / '
-                                         + str(len_data_list),
+            self.ttgo_display.write_line(0, title + ' p '
+                                         + str(current_page+1) + '/'
+                                         + '{:.0f}'.format(ceil(len_data_list/n_row)),
                                          color=self.ttgo_display.COLOR_WHITE)
             for i in range(0, len(data_list)):
                 if (current_page * n_row) <= i < ((current_page + 1) * n_row):
                     row = i - current_page * n_row + 1
                     location, temp_f, hum_f, pres_f, bat_val, bat_f, bat_pc_f, bat_color = data_list[i]
                     if current_mode == 1:
-                        self.ttgo_display.write_line_overview(row, location, temp_f + 'C', hum_f + '%',
+                        self.ttgo_display.write_line_overview(row, location, str(temp_f) + 'C', str(hum_f) + '%',
                                                               txt_color=self.ttgo_display.COLOR_CYAN,
                                                               val_color=self.ttgo_display.COLOR_YELLOW)
                     elif current_mode == 2:
-                        self.ttgo_display.write_line_bat(row, location, bat_f + 'V', bat_pc_f + '%',
+                        self.ttgo_display.write_line_bat(row, location, str(bat_f) + 'V', str(bat_pc_f) + '%',
                                                          txt_color=self.ttgo_display.COLOR_CYAN, bat_color=bat_color)
         else:
             self.ttgo_display.write_line(1, 'No datas', color=self.ttgo_display.COLOR_RED)
@@ -131,8 +133,8 @@ class Menu:
         self.interrupt_pin = None
         self.show = show
         self.ttgo_display = ttgo_display
-        self.choice_ok_timer = Timer(0)  # timer to valid the mode choice
-        self.button_debounce_timer = Timer(0)  # timer to debounce the switches
+        self.choice_ok_timer = Timer(1)  # timer to valid the mode choice
+        self.button_debounce_timer = Timer(2)  # timer to debounce the switches
         self.datas = datas
         self.data_time = data_time
 
@@ -159,26 +161,28 @@ class Menu:
         else:
             'mode overview'
             GlobalVar.current_page = 0
+           
+        self.show.refresh_screen_timer.deinit()
+        self.show.refresh_screen_timer.init(period=conf.REFRESH_SCREEN_TIMER_MS, mode=Timer.PERIODIC,
+                                       callback=self.show.refresh_screen_from_timer)
         self.show.refresh_screen()
 
-    # change the current mode
     def button_1_action(self):
         MODES = ['AUTO', 'OVERVIEW', 'BATTERY'] # modes
         self.ttgo_display.cls()
         self.choice_ok_timer.deinit()
         # increment ttgo_curent_mode and reset if too big
-        GlobalVar.current_mode += 1
-        if GlobalVar.current_mode > len(MODES) - 1:
-            GlobalVar.current_mode = 0
+        len_modes = len(MODES) # store the length of the list
+        GlobalVar.current_mode = (GlobalVar.current_mode + 1) % len_modes # use modulo to wrap around
         # display the menu with the active line in yellow
-        for i in range(0, len(MODES), 1):
-            if GlobalVar.current_mode == i:
-                color = self.ttgo_display.COLOR_YELLOW
-            else:
-                color = self.ttgo_display.COLOR_CYAN
-            self.ttgo_display.write_line(i, MODES[i], color=color)
+        # use a list comprehension to create a list of colors based on the current mode
+        colors = [self.ttgo_display.COLOR_YELLOW if i == GlobalVar.current_mode else self.ttgo_display.COLOR_CYAN for i in range(len_modes)]
+        # loop over the modes and colors and write each line
+        for i, (mode, color) in enumerate(zip(MODES, colors)):
+            self.ttgo_display.write_line(i, mode, color=color)
         # init timer to do action of the select menu entry
         self.choice_ok_timer.init(mode=Timer.ONE_SHOT, period=conf.CHOICE_TIMER_MS, callback=self.choice_ok)
+        # change the current mode
 
     # change the current page
     def button_2_action(self):
@@ -190,17 +194,21 @@ class Menu:
             current_page_inc = 1
             len_liste = 4
             GlobalVar.current_page = self.get_next_page(self.datas, len_liste, GlobalVar.current_page, current_page_inc)
+           
+        self.show.refresh_screen_timer.deinit()
+        self.show.refresh_screen_timer.init(period=conf.REFRESH_SCREEN_TIMER_MS, mode=Timer.PERIODIC,
+                                       callback=self.show.refresh_screen_from_timer)
         self.show.refresh_screen()
 
     def get_next_page(self, datas, len_liste, current_page, current_page_inc):
-        current_page += current_page_inc
-        n_pages_entieres = (len(datas) // len_liste) * current_page_inc
+        
+        # Calculer le nombre total de pages à afficher
+        n_pages = len(datas) // len_liste
         if len(datas) % len_liste > 0:
-            n_pages_partielles = 1
-        else:
-            n_pages_partielles = 0
-        if current_page >= n_pages_entieres + n_pages_partielles:
-            current_page = 0
+            n_pages += 1
+        # Augmenter ou diminuer la page courante selon l'incrément
+        # Si la page courante dépasse le nombre total de pages, revenir à la première page
+        current_page = (current_page + current_page_inc) % n_pages
         return current_page
 
 
@@ -222,11 +230,11 @@ class Central:
         # instantiation classes
         self.show = Show(self.ttgo_display, self.datas, self.data_time)
         self.menu = Menu(self.show, self.ttgo_display, self.datas, self.data_time)
-
+        
         # instantiation ESPNow
         self.espnow = ESPNow()
         self.espnow.active(True)
-
+    
     def get_formated_time(self, time=None):
         if time is None:
             dt = localtime()
@@ -256,27 +264,8 @@ class Central:
         except Exception as err:
             self.log.log_error('MQTT_connect_and_subscribe', self.log.error_detail(err), to_print=True)
             self.reset_esp32()
-
-    def format_string_number(self, string, n_dec=0):
-        # check if it's a number
-        try:
-            s = float(string)
-        except:
-            return 'error: the received string dont represent a number'
-        # it's a number
-        try:
-            dot_pos = string.index('.') # get the dot position
-        except:
-            # no dot so return the received string
-            return string
-        # round and format the number
-        if n_dec > 0:
-            return str(round(float(string), n_dec))
-        else:
-            return string[:dot_pos]
-        # no decimals so return the received string
-
-    def add_new_measurment(self, new_data):
+            
+    def add_new_measurement(self, new_data):
         location_exist = False
         for i, d in enumerate(self.datas):
             if d[0] == new_data[0]:
@@ -288,12 +277,8 @@ class Central:
         if not location_exist:
             self.datas.append(new_data)
             self.data_time.append(time())
-            if GlobalVar.current_mode == 0:
-                self.show.refresh_screen()
-        # refresh the display
-        if GlobalVar.current_mode != 0:
-            self.show.refresh_screen()
-            
+
+
     def reset_esp32(self):
         wait_time = conf.WAIT_TIME_ON_RESET
         while wait_time > 0:
@@ -316,15 +301,6 @@ class Central:
             while not sta.isconnected():
                 sleep_ms(200)
             sta.config(ps_mode=WIFI_PS_NONE)  # ..then disable power saving
-#             print("Local time before synchronization：%s" %str(localtime()))
-#             print('gmtime:', gmtime(), 'localtime:', localtime())
-#             settime()
-#             print("Local time after synchronization：%s" %str(localtime()))
-#             print('gmtime:', gmtime(), 'localtime:', localtime())
-#             mac = wlan_mac
-#             hexx = hexlify(wlan_mac, ',').decode().upper()
-#             unhex = unhexlify(hexx.replace(',',''))
-#             print('mac:',mac, 'hex:', hexx, 'unhex:', unhex)
             print('-----------------------------------------------------------------------')
             print(PROGRAM_NAME + ' v' + VERSION)
             print(self.get_formated_time())
@@ -345,53 +321,36 @@ class Central:
                 if peer and msg:
                     '''New message received'''
                     #                 print('new message received')
-#                     jmb_id, location, temp, hum, pres, bat = msg.decode('utf-8').split(',')
-#                     print(msg.decode('utf-8').split(','))
-#                     rx_measurements = []
                     jmb_id, location, sensor_type, rx_measurements = msg.decode('utf-8').split(',')
                     rx_measurements = rx_measurements.split(';')
-#                     print(sensor_type, rx_measurements)
                     # format the numbers for the small display
-
+                    mes_list = []
                     mes_dict = {}
                     # structure of dictionary
-                    # mes_dict['grandeur'] = [value, format to print, format for small display]
-                    mes_dict['temp'] = [0, '{:4.2f}', '{:.1f}']
-                    mes_dict['hum'] = [0, '{:2.0f}', '{:.0f}']
-                    mes_dict['pres'] = [0, '{:2.0f}', '{:.0f}']
-                    mes_dict['gas'] = [0, '{:4.0f}', '{:.0f}']
-                    mes_dict['alt'] = [0, '{:3.0f}', '{:.0f}']
-                    mes_dict['bat'] = [0, '{:4.2f}', '{:.2f}']
-
-
-                    temp, hum, pres, gas, alt, bat = 0, 0, 0, 0, 0, 0
-                    temp_f, hum_f, pres_f, gas_f, alt_f, bat_f = 0, 0, 0, 0, 0, 0
-                    mes_list = []
-                    for record in rx_measurements:
-                        record = record.split(':')
-                        measure = record[0]
-                        mes_list.append(measure)
-                        value = float(record[1])
-                        if measure == 'temp':
-                            temp = value
-                            temp_f = '{:.1f}'.format(value)
-                        elif measure == 'hum':
-                            hum = value
-                            hum_f = '{:.0f}'.format(value)
-                        elif measure == 'pres':
-                            pres = value
-                            pres_f = '{:.0f}'.format(value)
-                        elif measure == 'gas':
-                            gas = value
-                            gas_f = '{:.0f}'.format(value)
-                        elif measure == 'alt':
-                            alt = value
-                            alt_f = '{:.0f}'.format(value)
-                        elif measure == 'bat':
-                            bat = value
-                            bat_f = '{:.2f}'.format(value)
-                    # ubat min = 3.2 => 0%, ubat max = 4.2 => 100% --> bat_pc = 100 * bat -320
-                    bat_pc = min(((float(bat) * conf.BAT_PENTE) + conf.BAT_OFFSET), 100)  
+                    # mes_dict['grandeur'] = [value, format for print, format for small ttgo display]
+                    mes_dict['temp'] = [0, '{:.2f}', '{:.1f}']
+                    mes_dict['hum'] = [0, '{:.0f}', '{:.0f}']
+                    mes_dict['pres'] = [0, '{:.0f}', '{:.0f}']
+                    mes_dict['gas'] = [0, '{:.0f}', '{:.0f}']
+                    mes_dict['alt'] = [0, '{:.0f}', '{:.0f}']
+                    mes_dict['bat'] = [0, '{:.2f}', '{:.2f}']
+                    # pour chaque grandeur dans rx_measurment
+                    for rx_mes in rx_measurements:
+                        # separe grandeur and value [0] pour grandeur, [1] pour valeur
+                        rx_mes = rx_mes.split(':')
+                        # read the mes_dict value for this grandeur
+                        dict_record = mes_dict[rx_mes[0]]
+                        # set the new value for this record
+                        dict_record[0] = float(rx_mes[1])
+                        # update the mes_dict 
+                        mes_dict[rx_mes[0]] = dict_record
+                        
+                        # append this grandeur to the list of measurements
+                        mes_list.append(rx_mes[0])
+                    # append the bat, bat_f, bat_pc, bat_pc_f tp the list of measurements
+                    bat = float(mes_dict['bat'][0])
+                    bat_f = '{:.2f}'.format(bat)
+                    bat_pc = min(((bat * conf.BAT_PENTE) + conf.BAT_OFFSET), 100)  
                     bat_pc_f = '{:.0f}'.format(bat_pc)
                     
                     # change the color for the battery to indicate the charge state
@@ -403,9 +362,17 @@ class Central:
                         color_bat = self.ttgo_display.COLOR_GREEN
                     else:
                         color_bat = self.ttgo_display.COLOR_WHITE
-                        
-#                     self.add_new_measurment([location, temp_f, hum_f, pres_f, bat, bat_f, bat_pc_f, color_bat])
-                    self.add_new_measurment([sensor_type, temp_f, hum_f, pres_f, bat, bat_f, bat_pc_f, color_bat])
+                    
+                    # prepare the list of éléments for adding a new measurement
+                    new_measurement_list = [
+                        sensor_type,
+                        mes_dict['temp'][2].format(mes_dict['temp'][0]),
+                        mes_dict['hum'][2].format(mes_dict['hum'][0]),
+                        mes_dict['pres'][2].format(mes_dict['pres'][0]),
+                        mes_dict['bat'][2].format(mes_dict['bat'][0]),
+                        bat_f, bat_pc_f, color_bat
+                        ]
+                    self.add_new_measurement(new_measurement_list)
                     
                     # check if connected to Wi-FI and if not reconnect 
                     if not sta.isconnected():
@@ -423,14 +390,6 @@ class Central:
                         try:
                             # create the list of data  to send
                             txt_mes = [conf.TOPIC, location]
-                            # init the case structure in a dictionary
-                            mes_dict = {}
-                            mes_dict['temp'] = [temp, '{:4.2f}']
-                            mes_dict['hum'] = [hum, '{:2.0f}']
-                            mes_dict['pres'] = [pres, '{:2.0f}']
-                            mes_dict['gas'] = [gas, '{:4.0f}']
-                            mes_dict['alt'] = [alt, '{:3.0f}']
-                            mes_dict['bat'] = [bat, '{:4.2f}']
                             # append the values in the list
                             for act_mes in mes_list:
                                 txt_mes.append(str(mes_dict[act_mes][0]))
@@ -438,7 +397,7 @@ class Central:
                             txt_mes.append(str(sta.status('rssi')))
                             # create the message
                             msg = ','.join(txt_mes)
-                            print(msg)
+#                             print(msg)
                             # send the message to MQTT
                             client = self.mqtt_connect_and_subscribe()  # conf.BROKER_CLIENT_ID, conf.BROKER_IP, conf.TOPIC)
                             if client is not None:
@@ -456,8 +415,8 @@ class Central:
                         for act_mes in mes_list:
                             txt_mes.append(act_mes + ':' + str(mes_dict[act_mes][1].format(mes_dict[act_mes][0])))
                         # add the RSSI and errors to the list
-                        mes_list.append('RSSI:' + str(sta.status('rssi')))
-                        mes_list.append('errors:' + str(self.log.counters('error')))
+                        txt_mes.append('RSSI:' + str(sta.status('rssi')))
+                        txt_mes.append('errors:' + str(self.log.counters('error')))
                         # create the string to print and print it
                         txt = ' '.join(txt_mes)
                         print(txt)
