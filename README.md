@@ -17,7 +17,7 @@ Pour réduire la consommation d'énergie, cette version hard ne contient que l'e
 
 Dans l'exemple ci-après, le capteur est un BME 280 qui permet la mesure de la température, du taux d'humidité et de la pression atmosphérique.
 
-https://https://github.com/JOM52/esp32-airsens-v2/blob/main/schema/Schema.pdf
+https://github.com/JOM52/esp32-airsens-v2/blob/main/schema/Schema.pdf
 
 On peut aussi utiliser des capteurs hdc1080 qui mesurent seulement la température et l'humidité relative.
 
