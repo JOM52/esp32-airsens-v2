@@ -15,7 +15,9 @@ La version 1.06_tld du hardware fonctionne bien et ne nécessite pas de modifica
 
 Pour réduire la consommation d'énergie, cette version hard ne contient que l'essentiel pour faire fonctionner le capteur. La configuration se fait par une interface FTDI (USB to UART) qui se branche au besoin et les batteries se rechargent à part.
 
-Dans l'exemple ci-après, le capteur est un BME 280 qui permet la mesure de la température, du taux d'humidité et de la pression atmosphérique.https://https://github.com/JOM52/esp32-airsens-v2/blob/main/schema/Schema.pdf
+Dans l'exemple ci-après, le capteur est un BME 280 qui permet la mesure de la température, du taux d'humidité et de la pression atmosphérique.
+
+https://https://github.com/JOM52/esp32-airsens-v2/blob/main/schema/Schema.pdf
 
 On peut aussi utiliser des capteurs hdc1080 qui mesurent seulement la température et l'humidité relative.
 
