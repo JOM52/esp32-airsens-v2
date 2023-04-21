@@ -33,7 +33,7 @@ Ce projet implémente les drivers pour les capteurs de type BME280, BME680 et HD
 
 Le fichier de configuration permet de personnaliser le fonctionnement d'un capteur sans avoir à modifier le code source. Il contient des lignes de code en Micropython qui assignent des valeurs à des variables globales. Ces variables sont ensuite utilisées par le programme principal pour paramétrer les différents éléments du système. Le fichier de configuration n'a pas besoin d'une structure particulière, mais il peut être organisé en sections pour faciliter la lecture et la compréhension.
 
-Le code ci-après permet de configurer un capteur connecté à un ESP32 qui utilise le protocole ESP-now pour envoyer des données à un proxy. Le capteur peut être de type hdc1080, bme280 ou bme680 et mesure la température, l'humidité, la pression, le gaz et l'altitude selon le cas. Le capteur est alimenté par une batterie et entre en mode deepsleep entre chaque acquisition pour économiser de l'énergie. La tension de la batterie est mesurée par un pont diviseur de tension et un convertisseur analogique-numérique. Le code utilise les constantes définies au début du fichier pour paramétrer les différents éléments du système. Par exemple, SENSOR_LOCATION indique le nom du capteur, T_DEEPSLEEP_MS indique la durée du mode deepsleep en millisecondes, SENSORS indique les types de capteurs disponibles et leurs mesures associées, ON_BATTERY indique si le capteur est alimenté par une batterie ou non, etc. Le code utilise également la variable PROXY_MAC_ADRESS pour indiquer l'adresse MAC du proxy auquel il envoie les données via 
+Le code ci-après permet de configurer un capteur connecté à un ESP32 qui utilise le protocole ESP-now pour envoyer des données à un proxy. Le capteur peut être de type hdc1080, bme280 ou bme680 et mesure la température, l'humidité, la pression, le gaz et l'altitude selon le cas. Le capteur est alimenté par une batterie et entre en mode deepsleep entre chaque acquisition pour économiser de l'énergie. La tension de la batterie est mesurée par un pont diviseur de tension. Le code utilise les constantes définies au début du fichier pour paramétrer les différents éléments du système. Par exemple, SENSOR_LOCATION indique le nom du capteur, T_DEEPSLEEP_MS indique la durée du mode deepsleep en millisecondes, SENSORS indique les types de capteurs disponibles et leurs mesures associées, ON_BATTERY indique si le capteur est alimenté par une batterie ou non, etc. Le code utilise également la variable PROXY_MAC_ADRESS pour indiquer l'adresse MAC du proxy auquel il envoie les données via 
 
 Le code ci-dessous montre un exemple de fichier de configuration pour ce système:
 
@@ -79,7 +79,7 @@ PROXY_MAC_ADRESS = b'<a\x05\rg\xcc'
 
 Les valeurs mesurées pour chaque grandeur sont regroupées et transmises au broker MQTT dans un seul message. Le format de principe du message est le suivant:
 
-`msg = (topic, location, grandeur 1, grandeurs 2, .... , grandeur n, bat, rssi)`
+`msg = (topic, location, grandeur 1, grandeur 2, .... , grandeur n, bat, rssi)`
 
 Les grandeurs mesurées sont dépendantes des possibilités du capteur par exemple:
 
@@ -91,7 +91,7 @@ Les valeurs transmises à MQTT sont fonction de la configuration définie dans l
 
 #### Principe du logiciel capteur
 
-Pour économiser l'énergie consommée, le capteur est placé en ***deepsleep*** entre chaque mesure. Le temps de sommeil est défini dans le fichier de configuration en principe 5 minutes. Lors d'un éveil, le capteur lit le fichier de configuration, initialise les constantes, charge les librairies nécessaire, initialise le capteur, fait la mesure, mesure l'état de la batterie, transmets les valeurs à la centrale puis se met en ***deepsleep***
+Pour économiser l'énergie consommée, le capteur est placé en ***deepsleep*** entre chaque mesure. Le temps de sommeil est défini dans le fichier de configuration, en principe 5 minutes. Lors d'un éveil, le capteur lit le fichier de configuration, initialise les constantes, charge les librairies nécessaire, initialise le capteur, fait la mesure, mesure l'état de la batterie, transmets les valeurs à la centrale puis se met en ***deepsleep***
 
 ## Centrale
 
@@ -102,13 +102,13 @@ La centrale est le cœur du système de domotique. Elle a plusieurs fonctions :
 - Elle reçoit et traite les messages valides envoyés par les capteurs sans fil.
 - Elle adapte les messages au format de l'application de domotique choisie (domoticz, jeedom, ...).
 - Elle transmet les valeurs de mesure à MQTT, un protocole de communication qui permet de diffuser les informations aux abonnés.
-- Elle affiche différentes informations sur un écran tactile, comme les mesures et l'état des batteries des capteurs.
+- Elle affiche différentes informations sur un écran couleur, comme les mesures et l'état des batteries des capteurs.
 
-Les messages reçus ne sont pas confirmés au capteur. Cela signifie que si la centrale n'est pas disponible au moment où le capteur envoie un nouveau message, celui-ci est perdu. Cela ne pose pas de problème pour les mesures de grandeurs physiques qui varient peu dans le temps.
+Les messages reçus ne sont pas confirmés au capteur. Cela signifie que si la centrale n'est pas disponible au moment où le capteur envoie un nouveau message, celui-ci est perdu. En principe cela ne pose pas de problème pour les mesures de grandeurs physiques qui varient peu dans le temps.
 
 La centrale accepte tous les messages qui ont une structure correcte et qui proviennent d'un capteur dont elle connaît l'adresse MAC. Si le capteur est déjà enregistré dans le fichier de configuration et dans la mémoire programme, les nouvelles valeurs remplacent les anciennes. Sinon, le capteur est automatiquement reconnu et ajouté au fichier de configuration et à la mémoire programme.
 
-La centrale dispose de deux boutons sur la version matérielle des Lilygo-ttgo qui permettent de sélectionner les différents affichages programmés. La sélection d'une option se fait en restant appuyé sur le bouton pendant 2 secondes.
+La centrale dispose de deux boutons sur la version matérielle des Lilygo-ttgo qui permettent de sélectionner les différents affichages programmés. le choix se fait lorsque aucun bouton n'est pressé pendant 1 seconde.
 
 Pour transmettre les mesures à MQTT, la centrale se connecte au réseau WIFI. Les valeurs de mesure sont formatées selon les besoins de l'application de domotique choisie puis envoyées au broker MQTT qui les publie aux abonnés.
 
@@ -178,13 +178,13 @@ La centrale utilise un circuit Lilygo-ttgo qui comprend le processeur, une inter
 
 - bouton 2 --> next **Page**
 
-  le choix se fait lorsque aucun bouton n'est pressé pendant 1 secondes
+  le choix se fait lorsque aucun bouton n'est pressé pendant 1 seconde
 
 ## MQTT mosquitto
 
 Le logiciel MQTT fonctionne comme un éditeur (broker). Il est à l'écoute des auteur (publishers) qui publient des données et les diffuse auprès des abonnés (subscribers).
 
-MQTT est installé comme un service sur un Raspberry PI. Il reçoit les informations depuis les auteurs qui publient les données (les capteurs) et les rediffuse vers tous les abonnés sans aucun contrôle de validité. Son rôle se limite à faire transiter les données depuis les auteurs vers les abonnés. 
+MQTT est installé comme un service sur un Raspberry PI. Il reçoit les informations transmises par les auteurs qui publient les données (les capteurs) et les rediffuse vers tous les abonnés sans aucun contrôle de validité. Son rôle se limite à faire transiter les données depuis les auteurs vers les abonnés. La responsabilité de la validation et du contrôle des données est laissé à la centrale.
 
 Pour recevoir les données depuis le broker il suffit souscrire au broker sur le TOPIC concerné.
 
@@ -204,20 +204,37 @@ Ce programme se charge également d'alarmer l'utilisateur (par un mail, un Whats
 
 ## Programme de domotique
 
-Les mesures des capteurs peuvent, si nécessaire, être transmis à un logiciel de domotique (domoticz, jeedom, ...) pour être représentés graphiquement ou intervenir dans différentes alarmes. 
+Les mesures des capteurs peuvent être transmises à un logiciel de domotique (domoticz, jeedom, ...) pour être représentés graphiquement ou intervenir dans différentes alarmes. 
+
+La gestion des messages à destination des logiciels de domotique se font pour chaque logiciel  (domoticz, jeedom, ...) dans une classe spécifique.
+
+Pour Domoticz, le format des messages est le suivant:
+
+ {  "**command**": "udevice",  "**idx**" : 7,  "**nvalue**" : 0,  "**svalue**" : "90;2975.00", "**parse**": false } avec:
+
+- **command**: udevice pour un capteur
+- **idx**: index du capteur dans domoticz
+- **nvalue**: sans importance pour un capteur
+- **svalue**: valeurs mesurées p.ex. température; humidité; pression, ...
+
+plus de détails: https://piandmore.wordpress.com/2019/02/04/mqtt-out-for-domoticz/
+
+
+
+
 
 Ce thème fera objet d'un futur projet.
 
 ## GITHUB
 
 Ce projet est maintenu dans GitHub, avec une licence GPL. Il est accessible par le lien 
-https://github.com/JOM52/esp32-airsens-tld
+https://github.com/JOM52/esp32-airsens-v2
 
 
 
 
 
-Todi, Venise et Pravidondaz février-mars 2023
+Pravidondaz avril 2023
 
 
 

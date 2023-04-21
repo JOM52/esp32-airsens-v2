@@ -29,7 +29,7 @@ BUTTON_DEBOUNCE_TIMER_MS = 10 # milli seconds
 REFRESH_SCREEN_TIMER_MS = 20000 # mode auto: display next location each ... milli seconds
 
 # WIFI
-WIFI_WAN = 'jmb-home'
+WIFI_WAN = 'jmb-airsens'
 WIFI_PW = 'lu-mba01'
 
 # BATTERY

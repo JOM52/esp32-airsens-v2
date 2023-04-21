@@ -25,12 +25,14 @@ v0.3.1 : 26.02.2023 --> usage of conf values simplidied
 v1.0.0 : 12.03.2023 --> First production version - one version for bme280 and hdc1080
 ----------------------------------------------------------------------
 v2.0.0 : 02.04.2023 --> New data concept
+v2.0.1 : 21.04.2023 --> Small cosnetic changes
 """
 from utime import ticks_ms, sleep_ms
 start_time = ticks_ms()
 # PARAMETERS ========================================
 PRG_NAME = 'airsens_sensor_v2'
-PRG_VERSION = '2.0.0'
+PRG_VERSION = '2.0.1'
+from ubinascii import hexlify, unhexlify
 import airsens_sensor_conf_v2 as conf  # configuration file
 from machine import Pin, freq, TouchPad
 from machine import ADC, SoftI2C, deepsleep
@@ -53,8 +55,11 @@ pot.width(ADC.WIDTH_12BIT) # 0 ... 4095
 def main():
     
     try:
+        bin_mac_adress = unhexlify(conf.PROXY_MAC_ADRESS.replace(':',''))
         print('=================================================')
         print(PRG_NAME + ' v' + PRG_VERSION )
+        print('Central MAC Address:', conf.PROXY_MAC_ADRESS)
+        print('Central WLAN:', conf.WIFI_WAN)
         i = log.counters('passe', True)
         
         # instanciation of I2C
@@ -102,7 +107,7 @@ def main():
         # instantiation of ESPNow
         espnow = ESPNow()
         espnow.active(True)
-        espnow.add_peer(conf.PROXY_MAC_ADRESS)
+        espnow.add_peer(bin_mac_adress) #conf.PROXY_MAC_ADRESS)
         # send the message
         for msg in measurements:
             print(msg, len(msg))

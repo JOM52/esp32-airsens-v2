@@ -18,9 +18,12 @@ v1.0.0 : 11.03.2023 --> first production version
 v1.1.0 : 07.04.2023 --> adaptation for domoticz process begin
 -----------------------------------------------------------------------
 v2.0.0 : 10.04.2023 --> new data structure no more compatible with old versions
+v2.0.1 : 21.04.2023 --> small cosmetic changes
+v2.0.2 : 21.04.2023 --> added menu ABOUT
 """
-VERSION = '2.0.0'
+VERSION = '2.0.2'
 PROGRAM_NAME = 'airsens_central_v2.py'
+PROGRAM_NAME_SHORT = 'airsens'
 print('Loading "' + PROGRAM_NAME + '" v' + VERSION + ' please be patient ...')
 import airsens_central_conf_v2 as conf
 
@@ -41,6 +44,9 @@ class GlobalVar:
     data_pointer = None
     current_page = None
     current_mode = None
+    wlan_mac = None
+    sta = None
+    
 
 
 class Show:
@@ -78,7 +84,14 @@ class Show:
             'mode batteries status'
             self.display_overview(title='BATTERY ', n_row=4, n_col=1, data_list=self.datas,
                                        current_page=GlobalVar.current_page, current_mode=GlobalVar.current_mode)
-            
+        elif GlobalVar.current_mode == 3:
+            'mode about'
+            self.ttgo_display.write_line(0, PROGRAM_NAME_SHORT + ' v' + VERSION, color=self.ttgo_display.COLOR_WHITE)  
+            self.ttgo_display.write_about_line(1,'MAC:', str(hexlify(GlobalVar.wlan_mac, ':').decode().upper()))
+            self.ttgo_display.write_about_line(2,'IP:', str(GlobalVar.sta.ifconfig()[0]))
+            self.ttgo_display.write_about_line(3,'WAN:', conf.WIFI_WAN)
+            self.ttgo_display.write_about_line(4,'TC:', conf.TOPIC)
+
 
     # display the data for the modes auto
     def display_auto(self, datas, data_pointer):
@@ -158,9 +171,12 @@ class Menu:
         if GlobalVar.current_mode == 0:
             'mode auto'
             GlobalVar.data_pointer = -1
-        else:
+        elif GlobalVar.current_mode == 1 or GlobalVar.current_mode == 2:
             'mode overview'
             GlobalVar.current_page = 0
+        elif GlobalVar.current_mode == 3:
+            GlobalVar.current_page = 0
+            pass
            
         self.show.refresh_screen_timer.deinit()
         self.show.refresh_screen_timer.init(period=conf.REFRESH_SCREEN_TIMER_MS, mode=Timer.PERIODIC,
@@ -168,7 +184,7 @@ class Menu:
         self.show.refresh_screen()
 
     def button_1_action(self):
-        MODES = ['AUTO', 'OVERVIEW', 'BATTERY'] # modes
+        MODES = ['AUTO', 'OVERVIEW', 'BATTERY', 'ABOUT'] # modes
         self.ttgo_display.cls()
         self.choice_ok_timer.deinit()
         # increment ttgo_curent_mode and reset if too big
@@ -296,7 +312,8 @@ class Central:
             self.ttgo_display.write_centred_line(2, PROGRAM_NAME, color=self.ttgo_display.COLOR_YELLOW)
             self.ttgo_display.write_centred_line(3, 'Version:' + VERSION, color=self.ttgo_display.COLOR_YELLOW)
             sta, ap = self.wifi_reset()  # Reset Wi-FI to AP off, STA on and disconnected
-            wlan_mac = sta.config('mac')
+            GlobalVar.wlan_mac = sta.config('mac')
+            GlobalVar.sta = sta
             sta.connect(conf.WIFI_WAN, conf.WIFI_PW)
             while not sta.isconnected():
                 sleep_ms(200)
@@ -304,8 +321,10 @@ class Central:
             print('-----------------------------------------------------------------------')
             print(PROGRAM_NAME + ' v' + VERSION)
             print(self.get_formated_time())
-            print("Central MAC Address:", wlan_mac, '>>', hexlify(wlan_mac, ':').decode().upper()) # Show MAC for peering
+#             print("Central MAC Address:", GlobalVar.wlan_mac, '>>', hexlify(GlobalVar.wlan_mac, ':').decode().upper()) # Show MAC for peering
+            print("Central MAC Address:", hexlify(GlobalVar.wlan_mac, ':').decode().upper()) # Show MAC for peering
             print('Central IP:', sta.ifconfig()[0])
+            print('Central WLAN:', conf.WIFI_WAN)
             print('MQTT broker IP: ' + conf.BROKER_IP + ' topic: ' + conf.TOPIC)
             print("Main running on channel:", sta.config("channel"))
             print('ESPNow active:', self.espnow)
@@ -316,11 +335,11 @@ class Central:
             # Register an interrupt on rising button input.
             button_ecran.irq(self.menu.button_debounce, Pin.IRQ_RISING)
             button_mode.irq(self.menu.button_debounce, Pin.IRQ_RISING)
-
+#             print('just before espnow loop')
             for peer, msg in self.espnow:
                 if peer and msg:
                     '''New message received'''
-                    #                 print('new message received')
+#                     print('new message received')
                     jmb_id, location, sensor_type, rx_measurements = msg.decode('utf-8').split(',')
                     rx_measurements = rx_measurements.split(';')
                     # format the numbers for the small display
@@ -377,7 +396,7 @@ class Central:
                     # check if connected to Wi-FI and if not reconnect 
                     if not sta.isconnected():
                         sta, ap = self.wifi_reset()  # Reset Wi-FI to AP off, STA on and disconnected
-                        wlan_mac = sta.config('mac')
+#                         wlan_mac = sta.config('mac')
                         sta.connect(conf.WIFI_WAN, conf.WIFI_PW)
                         while not sta.isconnected():
                             sleep_ms(200)

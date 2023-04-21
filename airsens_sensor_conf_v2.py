@@ -5,8 +5,8 @@ T_DEEPSLEEP_MS = 15000
 SENSORS = {
     'hdc1080':['temp', 'hum'],
     'bme280':['temp', 'hum', 'pres'],
-    'bme680':['temp', 'hum', 'pres', 'gas', 'alt']
-    }
+    'bme680':['temp', 'hum', 'pres', 'gas', 'alt'],
+  }
 # power supply
 ON_BATTERY = True
 UBAT_100 = 4.2
@@ -24,7 +24,12 @@ AVERAGING = 1
 AVERAGING_BAT = 1
 AVERAGING_BME = 1
 # ESP-now
-PROXY_MAC_ADRESS = b'<a\x05\rg\xcc'
+# PROXY_MAC_ADRESS = b'<a\x05\rg\xcc'
+PROXY_MAC_ADRESS = '3C:61:05:0D:67:CC'
+
 # PROXY_MAC_ADRESS = b'<a\x05\x0c\xe7('
 
+# WIFI
+WIFI_WAN = 'jmb-airsens'
+WIFI_PW = 'lu-mba01'
 

@@ -13,9 +13,10 @@ Driver for the ttgo-t-display st7789
 v0.1.0 : 01.01.2023 --> first prototype
 v0.1.1 : 18.01.2023 --> added verif on text lenght before displaying
 V0.1.2 : 19.01.2023 --> CORRECTED color_...
+v0.1.3 : 21.04.2023 --> added write_about_line()
 """
-VERSION = '0.1.2'
-PROGRAM_NAME = 'airsens_now_ttgo_display.py' 
+VERSION = '0.1.3'
+PROGRAM_NAME = 'ttgo_display.py' 
 
 from time import sleep
 from lib.st7789 import ST7789, color565
@@ -104,6 +105,11 @@ class TtgoTdisplay:
 #               'x_c:', x_c)
         display.draw_text(y, x_c, txt, self.espresso_dolce, color, landscape=True)
 
+    def write_about_line(self, line, txt_name, txt_value):
+        y = line * self.line_height
+        x_txt_value = self.x_txt_0 - self.espresso_dolce.measure_text(txt_name) -10
+        display.draw_text(y, self.x_txt_0, txt_name, self.espresso_dolce, self.COLOR_YELLOW, landscape=True)
+        display.draw_text(y, x_txt_value, txt_value, self.espresso_dolce, self.COLOR_CYAN, landscape=True)
 
     def write_text(self, line, txt, color=COLOR_WHITE):
         
