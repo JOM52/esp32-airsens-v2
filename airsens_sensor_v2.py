@@ -25,13 +25,15 @@ v0.3.1 : 26.02.2023 --> usage of conf values simplidied
 v1.0.0 : 12.03.2023 --> First production version - one version for bme280 and hdc1080
 ----------------------------------------------------------------------
 v2.0.0 : 02.04.2023 --> New data concept
-v2.0.1 : 21.04.2023 --> Small cosnetic changes
+v2.0.1 : 21.04.2023 --> Small cosmetic changes
+v2.0.2 : 22.04.2023 --> improved espnow message sending by fixing the wifi channel
+v2.0.3 : 26.04.2023 --> Added TO_PRINT in conf file 
 """
 from utime import ticks_ms, sleep_ms
 start_time = ticks_ms()
 # PARAMETERS ========================================
 PRG_NAME = 'airsens_sensor_v2'
-PRG_VERSION = '2.0.1'
+PRG_VERSION = '2.0.3'
 from ubinascii import hexlify, unhexlify
 import airsens_sensor_conf_v2 as conf  # configuration file
 from machine import Pin, freq, TouchPad
@@ -45,21 +47,24 @@ if 'bme680' in conf.SENSORS:
     import lib.bme680 as bme680
 if 'hdc1080' in conf.SENSORS:
     import lib.hdc1080 as hdc1080
-from network import WLAN, STA_IF
+from network import WLAN, STA_IF, AP_IF
 from espnow import  ESPNow
 
 pot = ADC(Pin(conf.ADC1_PIN))            
 pot.atten(ADC.ATTN_6DB ) # Umax = 2V
 pot.width(ADC.WIDTH_12BIT) # 0 ... 4095
 
+
 def main():
     
     try:
         bin_mac_adress = unhexlify(conf.PROXY_MAC_ADRESS.replace(':',''))
-        print('=================================================')
-        print(PRG_NAME + ' v' + PRG_VERSION )
-        print('Central MAC Address:', conf.PROXY_MAC_ADRESS)
-        print('Central WLAN:', conf.WIFI_WAN)
+        if conf.TO_PRINT:
+            print('=================================================')
+            print(PRG_NAME + ' v' + PRG_VERSION )
+            print('Central MAC Address:', conf.PROXY_MAC_ADRESS)
+            print('WIFI channel:', conf.WIFI_CHANNEL)
+#         print('Central WLAN:', conf.WIFI_WAN)
         i = log.counters('passe', True)
         
         # instanciation of I2C
@@ -75,7 +80,8 @@ def main():
             elif sensor_actif == 'hdc1080':
                 sensor = hdc1080.HDC1080(i2c=i2c)
             
-            msg = 'jmb,'  + conf.SENSOR_LOCATION + ',' + sensor_actif +',' 
+            sensor_cpl = sensor_actif[0] + sensor_actif[3]
+            msg = 'jmb,'  + conf.SENSOR_LOCATION + '_' + sensor_cpl + ',' + sensor_actif +',' 
             measurement_list = conf.SENSORS.get(sensor_actif)
             for measurement in measurement_list:
                 value = 0
@@ -103,15 +109,25 @@ def main():
     
         # A WLAN interface must be active to send()/recv()
         sta = WLAN(STA_IF)
+        sta.active(False)
+        ap = WLAN(AP_IF)
+        ap.active(False)
         sta.active(True)
+        sta.config(channel=conf.WIFI_CHANNEL)
         # instantiation of ESPNow
         espnow = ESPNow()
         espnow.active(True)
         espnow.add_peer(bin_mac_adress) #conf.PROXY_MAC_ADRESS)
+#         print('espnow.get_peer(bin_mac_adress):',espnow.get_peer(bin_mac_adress))
         # send the message
+        if conf.TO_PRINT: print()
         for msg in measurements:
-            print(msg, len(msg))
-            espnow.send(msg)
+            if conf.TO_PRINT: print(msg)
+            msg_received_by_central = espnow.send(bin_mac_adress, msg, True)
+            if not msg_received_by_central:
+                log.counters('missed', True)
+        espnow.send(bin_mac_adress, ' ', True)
+        if conf.TO_PRINT: print()
         # close the communication canal
         espnow.active(False)
         espnow = None
@@ -123,15 +139,18 @@ def main():
         # check the level of the battery
         if float(bat) > conf.UBAT_0 or not conf.ON_BATTERY:
             # battery is ok so finishing tasks
-            print('passe', i, '- error count:', log.counters('error', False),'-->' , str(total_time) + 'ms')
-            print('going to deepsleep for: ' + str(t_deepsleep) + ' ms')
-            print('=================================================')
+            if conf.TO_PRINT:
+                print('passe', i, '- error count:', log.counters('error', False), '- msg missed:', log.counters('missed', False), '-->' , str(total_time) + 'ms')
+                print('going to deepsleep for: ' + str(t_deepsleep) + ' ms')
+                print('=================================================')
+            else:
+                print(str(total_time) + 'ms')
             deepsleep(t_deepsleep)
         else:
             # battery is dead so endless sleep to protect the battery
             pass_to_wait = 10
             for i in range(pass_to_wait):
-                print('going to endless deepsleep in ' + str(pass_to_wait - i) + ' s')
+                if conf.TO_PRINT: print('going to endless deepsleep in ' + str(pass_to_wait - i) + ' s')
                 sleep_ms(1000)
             log.log_error('Endless deepsleep due to low battery Ubat=' + str(bat) , to_print = True)
             deepsleep()
@@ -139,7 +158,7 @@ def main():
     except Exception as err:
         log.counters('error', True)
         log.log_error('airsens_sensor main error', log.error_detail(err), to_print=True)
-        print('going to deepsleep for: ' + str(conf.T_DEEPSLEEP_MS) + ' ms')
+        if conf.TO_PRINT: print('going to deepsleep for: ' + str(conf.T_DEEPSLEEP_MS) + ' ms')
         deepsleep(conf.T_DEEPSLEEP_MS)
 
 if __name__ == "__main__":

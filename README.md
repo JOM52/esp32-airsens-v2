@@ -180,6 +180,12 @@ La centrale utilise un circuit Lilygo-ttgo qui comprend le processeur, une inter
 
   le choix se fait lorsque aucun bouton n'est pressé pendant 1 seconde
 
+### Connection réseau attribution des canaux
+
+Désactivez l'attribution automatique des canaux sur votre routeur Wi-Fi : si le routeur Wi-Fi de votre réseau Wi-Fi est configuré pour attribuer automatiquement le canal Wi-Fi, il peut changer le canal du réseau s'il détecte des interférences provenant d'autres routeurs Wi-Fi. Lorsque cela se produit, les appareils ESP connectés au réseau Wi-Fi changeront également de canal pour correspondre au routeur, mais les autres appareils ESPNow uniquement resteront sur le canal précédent et la communication sera perdue. Pour atténuer cela, configurez votre routeur Wi-Fi pour qu'il utilise un canal Wi-Fi fixe ou configurez vos appareils pour analyser à nouveau les canaux Wi-Fi s'ils ne parviennent pas à trouver leurs homologues attendus sur le canal actuel.
+
+Il faut configurer le sensor pour utiliser le même canal (channel) que le router wifi
+
 ## MQTT mosquitto
 
 Le logiciel MQTT fonctionne comme un éditeur (broker). Il est à l'écoute des auteur (publishers) qui publient des données et les diffuse auprès des abonnés (subscribers).
@@ -219,6 +225,23 @@ Pour Domoticz, le format des messages est le suivant:
 
 plus de détails: https://piandmore.wordpress.com/2019/02/04/mqtt-out-for-domoticz/
 
+## Corrections à apporter
+
+- [ ] **Identification unique des capteurs**
+  - [ ] Compléter le topic par le type de capteur et un id unique pour pouvoir assurer de différentier chaque capteur donc 
+    le TOPIC sera constitué comme suit: SENSOR_LOCATION / SENSOR_TYPE / SENSOR_ID 
+  - [ ] Adapter le programme airsens_v2_jeedom.py
+  - [ ] Adapter la table airsens_v2 dans la base de données airsens sur le RPI 139 
+- [ ] **Perte de connexion en cas de coupure réseau**
+  - [ ] En cas de coupure réseau, le central se perd et ne redémarre pas automatiquement. 
+- [ ] **Sensor**
+  - [ ] Analyser si la possibilité d'avoir plusieurs sensors sur un seul capteur à du sens et si non supprimer le code correspondant
+  - [ ] Prévoir de désactiver les messages pour le suivi si le sensor est sur batterie (ON_BATTERY = False)
+- [ ] **Central**
+  - [ ] Analyser pourquoi le programme se plante et ne redémarre pas en cas de coupure réseau 
+- [ ] **Capteur**
+  - [ ] Modifier la valeur du condensateur (C3) (10uF ?) pour que le reset se fasse à l'enclenchement du sensor
+  - [ ] Etudier si l'implémentation du FTDI sur le capteur à du sens ou s'il rester avec un FTDI externe
 
 
 

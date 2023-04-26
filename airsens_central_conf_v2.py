@@ -13,10 +13,10 @@ v0.4.1 : 05.03.2023 --> small changes Venezia
 from ubinascii import hexlify
 from machine import unique_id
 #SYSTEM
-WAIT_TIME_ON_RESET = 300 # seconds to wait before the machine reset in case of error
+WAIT_TIME_ON_RESET = 10 # seconds to wait before the machine reset in case of error
 # MQTT
 BROKER_IP = '192.168.1.108'
-TOPIC = 'airsens_domoticz'
+TOPIC = 'airsens_v2'
 BROKER_CLIENT_ID = hexlify(unique_id())
 
 # TTGO
